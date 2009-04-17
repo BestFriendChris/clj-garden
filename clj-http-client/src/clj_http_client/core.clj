@@ -51,6 +51,11 @@
   (when-let [rbody (.getResponseBodyAsStream method)]
     (IOUtils/toString rbody (.getResponseCharSet method))))
 
+(defn- add-parameters [url parameters]
+  (if parameters
+    (str url "?" (apply str (interpose ";" (for [[k v] parameters] (str k "=" v)))))
+    url))
+
 (defn- http-execute-method
   "Generalized http request."
   [#^HttpMethod method {:keys [headers auth body-args]} handler]
@@ -77,34 +82,37 @@
 (defn http-head
   "Takes a url and optional parameters:
     { :header {'key' 'value'}
-      :auth (auth 'un' 'pw')}
+      :auth (auth 'un' 'pw')
+      :params {'key' 'value'}}
   
   Returns a [status headers] tuple corresponding to the response from a 
   HEAD request to the given url, optionally qualified by the given headers."
   [url & [options]]
-  (http-execute-method (HeadMethod. url) options
+  (http-execute-method (HeadMethod. (add-parameters url (options :params))) options
     (fn [h s method] [h s])))
 
 (defn http-get
   "Takes a url and optional parameters:
     { :header {'key' 'value'}
-      :auth (auth 'un' 'pw')}
+      :auth (auth 'un' 'pw')
+      :params {'key' 'value'}}
   
   Returns a [status headers body-string] tuple corresponding to the response
   from the given url."
   [url & [options]]
-  (http-execute-method (GetMethod. url) options
+  (http-execute-method (GetMethod. (add-parameters url (options :params))) options
     (fn [s h method] [s h (method-body method)])))
 
 (defn http-get-bytes
   "Takes a url and optional parameters:
     { :header {'key' 'value'}
-      :auth (auth 'un' 'pw')}
+      :auth (auth 'un' 'pw')
+      :params {'key' 'value'}}
   
   Returns a [status headers body-byte-array] tuple corresponding to the 
   response from the given url."
   [url & [options]]
-  (http-execute-method (GetMethod. url) options
+  (http-execute-method (GetMethod. (add-parameters url (options :params))) options
     (fn [s h #^HttpMethod method]
       [s h (IOUtils/toByteArray (.getResponseBodyAsStream method))])))
 
@@ -113,7 +121,7 @@
   response body input stream for a request to the given url with the given 
   headers."
   ([url options handler]
-   (http-execute-method (GetMethod. url) options
+   (http-execute-method (GetMethod. (add-parameters url (options :params))) options
      (fn [s h #^HttpMethod get-method]
        (with-open [b-stream (.getResponseBodyAsStream get-method)]
          (handler s h b-stream)))))
@@ -124,36 +132,39 @@
   "Takes a url and optional parameters:
     { :header {'key' 'value'}
       :auth (auth 'un' 'pw')
+      :params {'key' 'value'}
       :body-args [body content-type? encoding?]}
   
   Returns a [status headers body] tuple corresponding to the response from a
   PUT request to the given url. request-args are of the form 
   [headers? put-entity content-type? encoding?]"
   [url & [options]]
-  (http-execute-method (PutMethod. url) options
+  (http-execute-method (PutMethod. (add-parameters url (options :params))) options
     (fn [s h put-method] (method-body put-method))))
 
 (defn http-post
   "Takes a url and optional parameters:
     { :header {'key' 'value'}
       :auth (auth 'un' 'pw')
+      :params {'key' 'value'}
       :body-args [body content-type? encoding?]}
   
   Returns a [status headers body] tuple corresponding to the response from a
   POSt request to the given url. request-args are of the form 
   [headers? post-entity content-type? encoding?]"
   [url & [options]]
-  (http-execute-method (PostMethod. url) options
+  (http-execute-method (PostMethod. (add-parameters url (options :params))) options
     (fn [s h post-method] [s h (method-body post-method)])))
 
 (defn http-delete
   "Takes a url and optional parameters:
     { :header {'key' 'value'}
-      :auth (auth 'un' 'pw')}
+      :auth (auth 'un' 'pw')
+      :params {'key' 'value'}}
   
   Returns a [status headers body] tuple corresponding to the response
   from a DELETE request to the given url, optionally qualified by the given
   headers."
   [url & [options]]
-  (http-execute-method (DeleteMethod. url) options
+  (http-execute-method (DeleteMethod. (add-parameters url (options :params))) options
     (fn [s h delete-method] [s h (method-body delete-method)])))
