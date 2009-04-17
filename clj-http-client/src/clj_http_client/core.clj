@@ -2,7 +2,7 @@
   (:use (clojure.contrib fcase except def))
   (:import (org.apache.commons.httpclient
              HttpClient DefaultHttpMethodRetryHandler Header
-             HttpMethod HttpMethodBase)
+             HttpMethod HttpMethodBase UsernamePasswordCredentials)
            (org.apache.commons.httpclient.methods
              HeadMethod GetMethod PutMethod PostMethod DeleteMethod
              RequestEntity ByteArrayRequestEntity FileRequestEntity
@@ -11,6 +11,7 @@
              MultipartRequestEntity)
            (org.apache.commons.httpclient.params HttpMethodParams)
            (org.apache.commons.httpclient.cookie CookiePolicy)
+           (org.apache.commons.httpclient.auth AuthScope)
            (org.apache.commons.io IOUtils)
            (java.io File InputStream)))
 
@@ -52,13 +53,14 @@
 
 (defn- http-execute-method
   "Generalized http request."
-  [#^HttpMethod method {:keys [headers body-args]} handler]
+  [#^HttpMethod method {:keys [headers auth body-args]} handler]
   (let [client        (HttpClient.)
         method-params (.getParams method)]
     (.setParameter method-params HttpMethodParams/RETRY_HANDLER
       (DefaultHttpMethodRetryHandler.))
     (.setCookiePolicy method-params CookiePolicy/IGNORE_COOKIES)
     (when headers (apply-headers method headers))
+    (when auth (.. client (getState) (setCredentials AuthScope/ANY auth)))
     (when body-args
       (.setRequestEntity #^EntityEnclosingMethod method
         (request-entity body-args)))
@@ -69,9 +71,13 @@
       (finally
         (.releaseConnection method)))))
 
+(defn auth [username password]
+  (UsernamePasswordCredentials. username password))
+
 (defn http-head
   "Takes a url and optional parameters:
-    { :header {'key' 'value'}}
+    { :header {'key' 'value'}
+      :auth (auth 'un' 'pw')}
   
   Returns a [status headers] tuple corresponding to the response from a 
   HEAD request to the given url, optionally qualified by the given headers."
@@ -81,7 +87,8 @@
 
 (defn http-get
   "Takes a url and optional parameters:
-    { :header {'key' 'value'}}
+    { :header {'key' 'value'}
+      :auth (auth 'un' 'pw')}
   
   Returns a [status headers body-string] tuple corresponding to the response
   from the given url."
@@ -91,7 +98,8 @@
 
 (defn http-get-bytes
   "Takes a url and optional parameters:
-    { :header {'key' 'value'}}
+    { :header {'key' 'value'}
+      :auth (auth 'un' 'pw')}
   
   Returns a [status headers body-byte-array] tuple corresponding to the 
   response from the given url."
@@ -114,7 +122,8 @@
 
 (defn http-put
   "Takes a url and optional parameters:
-    { :header    {'key' 'value'}
+    { :header {'key' 'value'}
+      :auth (auth 'un' 'pw')
       :body-args [body content-type? encoding?]}
   
   Returns a [status headers body] tuple corresponding to the response from a
@@ -126,7 +135,8 @@
 
 (defn http-post
   "Takes a url and optional parameters:
-    { :header    {'key' 'value'}
+    { :header {'key' 'value'}
+      :auth (auth 'un' 'pw')
       :body-args [body content-type? encoding?]}
   
   Returns a [status headers body] tuple corresponding to the response from a
@@ -138,7 +148,8 @@
 
 (defn http-delete
   "Takes a url and optional parameters:
-    { :header {'key' 'value'}}
+    { :header {'key' 'value'}
+      :auth (auth 'un' 'pw')}
   
   Returns a [status headers body] tuple corresponding to the response
   from a DELETE request to the given url, optionally qualified by the given
