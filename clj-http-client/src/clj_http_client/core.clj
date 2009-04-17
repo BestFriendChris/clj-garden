@@ -52,7 +52,7 @@
 
 (defn- http-execute-method
   "Generalized http request."
-  [#^HttpMethod method headers body-args handler]
+  [#^HttpMethod method {:keys [headers body-args]} handler]
   (let [client        (HttpClient.)
         method-params (.getParams method)]
     (.setParameter method-params HttpMethodParams/RETRY_HANDLER
@@ -70,24 +70,33 @@
         (.releaseConnection method)))))
 
 (defn http-head
-  "Returns a [status headers] tuple corresponding to the response from a 
+  "Takes a url and optional parameters:
+    { :header {'key' 'value'}}
+  
+  Returns a [status headers] tuple corresponding to the response from a 
   HEAD request to the given url, optionally qualified by the given headers."
-  [url & [headers]]
-  (http-execute-method (HeadMethod. url) headers nil
+  [url & [options]]
+  (http-execute-method (HeadMethod. url) options
     (fn [h s method] [h s])))
 
 (defn http-get
-  "Returns a [status headers body-string] tuple corresponding to the response
+  "Takes a url and optional parameters:
+    { :header {'key' 'value'}}
+  
+  Returns a [status headers body-string] tuple corresponding to the response
   from the given url."
-  [url & [headers]]
-  (http-execute-method (GetMethod. url) headers nil
+  [url & [options]]
+  (http-execute-method (GetMethod. url) options
     (fn [s h method] [s h (method-body method)])))
 
 (defn http-get-bytes
-  "Returns a [status headers body-byte-array] tuple corresponding to the 
+  "Takes a url and optional parameters:
+    { :header {'key' 'value'}}
+  
+  Returns a [status headers body-byte-array] tuple corresponding to the 
   response from the given url."
-  [url & [headers]]
-  (http-execute-method (GetMethod. url) headers nil
+  [url & [options]]
+  (http-execute-method (GetMethod. url) options
     (fn [s h #^HttpMethod method]
       [s h (IOUtils/toByteArray (.getResponseBodyAsStream method))])))
 
@@ -95,44 +104,45 @@
   "Experimental. Invokes the given handler with the status, headers, and 
   response body input stream for a request to the given url with the given 
   headers."
-  ([url headers handler]
-   (http-execute-method (GetMethod. url) headers nil
+  ([url options handler]
+   (http-execute-method (GetMethod. url) options
      (fn [s h #^HttpMethod get-method]
        (with-open [b-stream (.getResponseBodyAsStream get-method)]
          (handler s h b-stream)))))
   ([url handler]
    (http-get-stream url {} handler)))
 
-(defn- headers-and-body-args
-  "Returns a tuple of [headers body-args] corresponding to the given
-  request-args"
-  [request-args]
-  (if (map? (first request-args))
-    [(first request-args) (rest request-args)]
-    [nil request-args]))
-
 (defn http-put
-  "Returns a [status headers body] tuple corresponding to the response from a
+  "Takes a url and optional parameters:
+    { :header    {'key' 'value'}
+      :body-args [body content-type? encoding?]}
+  
+  Returns a [status headers body] tuple corresponding to the response from a
   PUT request to the given url. request-args are of the form 
   [headers? put-entity content-type? encoding?]"
-  [url & request-args]
-  (let [[headers body-args] (headers-and-body-args request-args)]
-    (http-execute-method (PutMethod. url) headers body-args
-      (fn [s h put-method] (method-body put-method)))))
+  [url & [options]]
+  (http-execute-method (PutMethod. url) options
+    (fn [s h put-method] (method-body put-method))))
 
 (defn http-post
-  "Returns a [status headers body] tuple corresponding to the response from a
+  "Takes a url and optional parameters:
+    { :header    {'key' 'value'}
+      :body-args [body content-type? encoding?]}
+  
+  Returns a [status headers body] tuple corresponding to the response from a
   POSt request to the given url. request-args are of the form 
   [headers? post-entity content-type? encoding?]"
-  [url & request-args]
-  (let [[headers body-args] (headers-and-body-args request-args)]
-    (http-execute-method (PostMethod. url) headers body-args
-      (fn [s h post-method] [s h (method-body post-method)]))))
+  [url & [options]]
+  (http-execute-method (PostMethod. url) options
+    (fn [s h post-method] [s h (method-body post-method)])))
 
 (defn http-delete
-  "Returns a [status headers body] tuple corresponding to the response
+  "Takes a url and optional parameters:
+    { :header {'key' 'value'}}
+  
+  Returns a [status headers body] tuple corresponding to the response
   from a DELETE request to the given url, optionally qualified by the given
   headers."
-  [url & [headers]]
-  (http-execute-method (DeleteMethod. url) headers nil
+  [url & [options]]
+  (http-execute-method (DeleteMethod. url) options
     (fn [s h delete-method] [s h (method-body delete-method)])))
