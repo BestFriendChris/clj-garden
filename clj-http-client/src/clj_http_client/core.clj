@@ -1,5 +1,5 @@
 (ns clj-http-client.core
-  (:use (clojure.contrib fcase except def))
+  (:use (clojure.contrib fcase except def walk))
   (:import (org.apache.commons.httpclient
              HttpClient DefaultHttpMethodRetryHandler Header
              HttpMethod HttpMethodBase UsernamePasswordCredentials)
@@ -53,7 +53,7 @@
 
 (defn- add-parameters [url parameters]
   (if parameters
-    (str url "?" (apply str (interpose ";" (for [[k v] parameters] (str k "=" v)))))
+    (str url "?" (apply str (interpose ";" (for [[k v] (stringify-keys parameters)] (str k "=" v)))))
     url))
 
 (defn- http-execute-method
