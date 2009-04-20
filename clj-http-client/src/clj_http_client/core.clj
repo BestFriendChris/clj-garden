@@ -56,6 +56,11 @@
     (str url "?" (apply str (interpose ";" (for [[k v] (stringify-keys parameters)] (str k "=" v)))))
     url))
 
+(defn- add-parameters-to-post [post-method parameters]
+  (if parameters (dorun (map (fn [[k v]] (.addParameter post-method k (str v))) (stringify-keys parameters))))
+  post-method)
+
+
 (defn- http-execute-method
   "Generalized http request."
   [#^HttpMethod method {:keys [headers auth body-args]} handler]
@@ -88,7 +93,7 @@
   Returns a [status headers] tuple corresponding to the response from a 
   HEAD request to the given url, optionally qualified by the given headers."
   [url & [options]]
-  (http-execute-method (HeadMethod. (add-parameters url (options :params))) options
+  (http-execute-method (HeadMethod. (add-parameters url (:params options))) options
     (fn [h s method] [h s])))
 
 (defn http-get
@@ -100,7 +105,7 @@
   Returns a [status headers body-string] tuple corresponding to the response
   from the given url."
   [url & [options]]
-  (http-execute-method (GetMethod. (add-parameters url (options :params))) options
+  (http-execute-method (GetMethod. (add-parameters url (:params options))) options
     (fn [s h method] [s h (method-body method)])))
 
 (defn http-get-bytes
@@ -112,7 +117,7 @@
   Returns a [status headers body-byte-array] tuple corresponding to the 
   response from the given url."
   [url & [options]]
-  (http-execute-method (GetMethod. (add-parameters url (options :params))) options
+  (http-execute-method (GetMethod. (add-parameters url (:params options))) options
     (fn [s h #^HttpMethod method]
       [s h (IOUtils/toByteArray (.getResponseBodyAsStream method))])))
 
@@ -121,7 +126,7 @@
   response body input stream for a request to the given url with the given 
   headers."
   ([url options handler]
-   (http-execute-method (GetMethod. (add-parameters url (options :params))) options
+   (http-execute-method (GetMethod. (add-parameters url (:params options))) options
      (fn [s h #^HttpMethod get-method]
        (with-open [b-stream (.getResponseBodyAsStream get-method)]
          (handler s h b-stream)))))
@@ -139,7 +144,7 @@
   PUT request to the given url. request-args are of the form 
   [headers? put-entity content-type? encoding?]"
   [url & [options]]
-  (http-execute-method (PutMethod. (add-parameters url (options :params))) options
+  (http-execute-method (PutMethod. (add-parameters url (:params options))) options
     (fn [s h put-method] (method-body put-method))))
 
 (defn http-post
@@ -153,7 +158,7 @@
   POSt request to the given url. request-args are of the form 
   [headers? post-entity content-type? encoding?]"
   [url & [options]]
-  (http-execute-method (PostMethod. (add-parameters url (options :params))) options
+  (http-execute-method (add-parameters-to-post (PostMethod. url) (:params options)) options
     (fn [s h post-method] [s h (method-body post-method)])))
 
 (defn http-delete
@@ -166,5 +171,5 @@
   from a DELETE request to the given url, optionally qualified by the given
   headers."
   [url & [options]]
-  (http-execute-method (DeleteMethod. (add-parameters url (options :params))) options
+  (http-execute-method (DeleteMethod. (add-parameters url (:params options))) options
     (fn [s h delete-method] [s h (method-body delete-method)])))
