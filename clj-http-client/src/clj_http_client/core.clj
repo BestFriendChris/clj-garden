@@ -53,7 +53,7 @@
 
 (defn- add-parameters [url parameters]
   (if parameters
-    (str url "?" (apply str (interpose ";" (for [[k v] (stringify-keys parameters)] (str k "=" v)))))
+    (str url "?" (apply str (interpose "&" (for [[k v] (stringify-keys parameters)] (str k "=" v)))))
     url))
 
 (defn- add-parameters-to-post [post-method parameters]
